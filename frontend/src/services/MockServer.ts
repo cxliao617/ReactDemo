@@ -1,13 +1,13 @@
-import {createServer,Factory,Model,Serializer} from 'miragejs'
+import {createServer,Factory,Model,Serializer,Response} from 'miragejs'
 
 import {ITodo,TodoBody,TodoStatus} from '../types/todo'
-import IdManager from './IdManager'
+import UuidManager from 'miragejs-uuidmanager'
 
 export function MockServer({environment = 'development'}){
     return createServer({
         environment,
         identityManagers: {
-            todo: IdManager,
+            todo: UuidManager,
         } as any,
         serializers: {
             todo: Serializer.extend({
@@ -39,7 +39,9 @@ export function MockServer({environment = 'development'}){
         routes(){
             this.urlPrefix = '/api'
             this.get('/todos',(schema,request) => {
-                return schema.all('todo')
+                const todos = schema.all('todo')
+
+                return new Response(200,{},todos)
             })
             this.post('/todos',(schema,request)=>{
                 const attrs = JSON.parse(request.requestBody) as TodoBody
@@ -48,15 +50,15 @@ export function MockServer({environment = 'development'}){
                 if(res.attrs._id !== undefined)
                 {
                     const todo = schema.db.todos.update(res.attrs._id,res.attrs)
-                    return {todo}
+                    return new Response(201,{},{todo})
                 }
-                return {todo:res}
+                return new Response(500)
             })
             this.put('/todos/:key',(schema,request)=>{
                 const keyId = request.params.key 
                 const attrs = JSON.parse(request.requestBody)
                 const res = schema.db.todos.update(keyId,attrs)
-                return {todo:res}
+                return new Response(204)
             })
             this.del('/todos/:key',(schema,request)=>{
                 const keyId = request.params.key
@@ -65,7 +67,7 @@ export function MockServer({environment = 'development'}){
                 {
                     post.destroy()
                 }
-                return {todo:post}
+                return new Response(204)
             })
         }
     })
